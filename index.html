@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Prevent iPhone zooming -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
 <meta name="theme-color" content="#007a4d">
 <title>Gap Scan</title>
 <style>
@@ -19,9 +22,6 @@ h1{text-align:center;margin:8px 0 14px;color:#007a4d}
 .left{display:flex;align-items:center;gap:10px}
 .arrow{font-size:16px;width:18px;transition:.15s}
 .open .arrow{transform:rotate(90deg)}
-button, .control {
-  touch-action: manipulation;
-}
 .count-pill{background:#e8f4ef;color:#007a4d;border-radius:20px;padding:5px 12px;min-width:42px;text-align:center}
 .controls{display:none;padding:0 17px 17px;justify-content:center;align-items:center;gap:22px}
 .open .controls{display:flex}
@@ -34,6 +34,11 @@ button, .control {
 .history-item{padding:10px;border-bottom:1px solid #ddd}
 .history-item:last-child{border-bottom:none}
 .save-week{width:100%;height:52px;margin:10px 0;border:0;border-radius:11px;background:#007a4d;color:white;font-size:17px;font-weight:bold;cursor:pointer}
+
+/* Prevent iPhone zooming on buttons */
+button, .control {
+  touch-action: manipulation;
+}
 </style>
 </head>
 <body>
@@ -70,21 +75,130 @@ button, .control {
   <button class="reset" onclick="resetHistory()">Reset History</button>
 </div>
 
-
 <script>
+// ===============================
+// CLOUD SYNC SETTINGS
+// ===============================
+
+// Replace these on YOUR computer (not here)
+const API_KEY = "$2a$10$NIAnGuwphaszKujqT7i6pOPXdyaHYz34UH8ZaXZOREDVoRt3JpFGa";
+const BIN_ID = "6aaaaf91ffd5d160530e9082";
+
+// Base URL for jsonbin
+const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+
+// ===============================
+// LOAD HISTORY FROM CLOUD
+// ===============================
+async function loadHistoryFromCloud() {
+  try {
+    const res = await fetch(BIN_URL, {
+      headers: {
+        "X-Master-Key": API_KEY
+      }
+    });
+
+    const data = await res.json();
+    const history = data.record.history || [];
+
+    renderHistory(history);
+    return history;
+
+  } catch (err) {
+    console.error("Error loading cloud history:", err);
+    alert("Could not load cloud history.");
+    return [];
+  }
+}
+
+
+// ===============================
+// SAVE HISTORY TO CLOUD
+// ===============================
+async function saveHistoryToCloud(history) {
+  try {
+    await fetch(BIN_URL, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": API_KEY
+      },
+      body: JSON.stringify({ history })
+    });
+
+  } catch (err) {
+    console.error("Error saving cloud history:", err);
+    alert("Could not save weekly record to cloud.");
+  }
+}
+
+
+// ===============================
+// RENDER HISTORY
+// ===============================
+function renderHistory(history) {
+  const box = document.getElementById("history");
+  box.innerHTML = "";
+
+  history.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "history-item";
+    div.innerHTML = `
+      <strong>${r.date}</strong><br>
+      Total: ${r.total}<br>
+      Worst Offender: ${r.worst}
+    `;
+    box.appendChild(div);
+  });
+}
+
+
+// ===============================
+// SAVE WEEKLY RECORD (SYNCED)
+// ===============================
+async function saveWeeklyRecord() {
+  const history = await loadHistoryFromCloud();
+
+  const record = {
+    date: new Date().toLocaleDateString(),
+    total: sections.reduce((sum, s) => sum + counts[s], 0),
+    worst: document.getElementById("worst").textContent,
+    counts: { ...counts }
+  };
+
+  history.push(record);
+
+  await saveHistoryToCloud(history);
+  renderHistory(history);
+
+  alert("Weekly record saved to cloud!");
+}
+
+
+// ===============================
+// RESET HISTORY (SYNCED)
+// ===============================
+async function resetHistory() {
+  if (!confirm("Are you sure you want to delete ALL weekly history?")) return;
+
+  const emptyHistory = [];
+
+  await saveHistoryToCloud(emptyHistory);
+  renderHistory(emptyHistory);
+
+  alert("Cloud history cleared.");
+}
+
+
+// ===============================
+// ORIGINAL LOCAL FUNCTIONS
+// ===============================
 const sections=[
 "Aisle 1","Aisle 2","Aisle 3","Aisle 4","Aisle 5","Aisle 6",
 "Aisle 7","Aisle 8","Aisle 9","Aisle 10","Aisle 11","Eggs","Service",
 "Gap (Not Scanned)"
 ];
-
-function resetHistory(){
-  if(!confirm("Are you sure you want to delete ALL weekly history?")) return;
-
-  localStorage.removeItem("gapHistory");
-  loadHistory();
-  alert("History cleared.");
-}
 
 const counts=JSON.parse(localStorage.getItem("gapScanCounts")||"{}");
 sections.forEach(s=>{if(typeof counts[s]!=="number")counts[s]=0});
@@ -162,44 +276,11 @@ function resetAll(){
   updateWorstOffender();
 }
 
-/* -------------------------
-   WEEKLY HISTORY SYSTEM
---------------------------*/
 
-function saveWeeklyRecord(){
-  const history = JSON.parse(localStorage.getItem("gapHistory") || "[]");
-
-  const record = {
-    date: new Date().toLocaleDateString(),
-    total: sections.reduce((sum,s)=>sum+counts[s],0),
-    worst: document.getElementById("worst").textContent,
-    counts: {...counts}
-  };
-
-  history.push(record);
-  localStorage.setItem("gapHistory", JSON.stringify(history));
-  loadHistory();
-  alert("Weekly record saved!");
-}
-
-function loadHistory(){
-  const history = JSON.parse(localStorage.getItem("gapHistory") || "[]");
-  const box = document.getElementById("history");
-  box.innerHTML = "";
-
-  history.forEach(r=>{
-    const div = document.createElement("div");
-    div.className="history-item";
-    div.innerHTML = `
-      <strong>${r.date}</strong><br>
-      Total: ${r.total}<br>
-      Worst Offender: ${r.worst}
-    `;
-    box.appendChild(div);
-  });
-}
-
-loadHistory();
+// ===============================
+// INITIAL LOAD
+// ===============================
+loadHistoryFromCloud();
 updateTotal();
 updateWorstOffender();
 </script>
