@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#007a4d">
+<title>Gap Scan</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5f4;font-family:Arial,sans-serif;color:#222;padding:14px;max-width:700px;margin:auto}
+h1{text-align:center;margin:8px 0 14px;color:#007a4d}
+.logo-container{text-align:center;margin-top:10px;margin-bottom:10px}
+.logo-container img{width:180px;border-radius:12px}
+.total{position:sticky;top:8px;z-index:10;background:#007a4d;color:white;border-radius:14px;padding:14px;text-align:center;box-shadow:0 3px 10px #0002;margin-bottom:12px}
+.total strong{display:block;font-size:30px;margin-top:3px}
+.card{background:white;border-radius:12px;margin:9px 0;box-shadow:0 2px 7px #0001;overflow:hidden}
+.header{width:100%;border:0;background:white;padding:17px;display:flex;align-items:center;justify-content:space-between;font-size:18px;font-weight:bold;cursor:pointer}
+.header:active{background:#f0f0f0}
+.left{display:flex;align-items:center;gap:10px}
+.arrow{font-size:16px;width:18px;transition:.15s}
+.open .arrow{transform:rotate(90deg)}
+.count-pill{background:#e8f4ef;color:#007a4d;border-radius:20px;padding:5px 12px;min-width:42px;text-align:center}
+.controls{display:none;padding:0 17px 17px;justify-content:center;align-items:center;gap:22px}
+.open .controls{display:flex}
+.control{width:58px;height:52px;border:0;border-radius:10px;font-size:28px;font-weight:bold;cursor:pointer}
+.minus{background:#eee;color:#333}.plus{background:#007a4d;color:white}
+.number{font-size:30px;min-width:55px;text-align:center}
+.reset{width:100%;height:52px;margin:15px 0;border:0;border-radius:11px;background:#444;color:white;font-size:17px;font-weight:bold;cursor:pointer}
+.hint{text-align:center;color:#777;font-size:13px;margin:4px 0 12px}
+.history-box{background:white;padding:14px;border-radius:12px;box-shadow:0 2px 7px #0001;margin-top:20px}
+.history-item{padding:10px;border-bottom:1px solid #ddd}
+.history-item:last-child{border-bottom:none}
+.save-week{width:100%;height:52px;margin:10px 0;border:0;border-radius:11px;background:#007a4d;color:white;font-size:17px;font-weight:bold;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- Coles Logo -->
+<div class="logo-container">
+  <img src="https://logos-world.net/wp-content/uploads/2022/04/Coles-Symbol.png" alt="Coles Logo">
+</div>
+
+<h1>Gap Scan</h1>
+
+<div class="total">
+  Total Gaps
+  <strong id="total">0</strong>
+</div>
+
+<!-- Worst Offender Box -->
+<div class="total" style="margin-top:10px;background:#b30000">
+  Worst Offender
+  <strong id="worst">None</strong>
+</div>
+
+<button class="save-week" onclick="saveWeeklyRecord()">Save Weekly Record</button>
+
+<div id="list"></div>
+
+<div class="hint">Tap an aisle to open the counter</div>
+<button class="reset" onclick="resetAll()">Reset All</button>
+
+<!-- History Section -->
+<div class="history-box">
+  <h3>Weekly History</h3>
+  <div id="history"></div>
+  <button class="reset" onclick="resetHistory()">Reset History</button>
+</div>
+
+
+<script>
+const sections=[
+"Aisle 1","Aisle 2","Aisle 3","Aisle 4","Aisle 5","Aisle 6",
+"Aisle 7","Aisle 8","Aisle 9","Aisle 10","Aisle 11","Eggs","Service",
+"Gap (Not Scanned)"
+];
+
+function resetHistory(){
+  if(!confirm("Are you sure you want to delete ALL weekly history?")) return;
+
+  localStorage.removeItem("gapHistory");
+  loadHistory();
+  alert("History cleared.");
+}
+
+const counts=JSON.parse(localStorage.getItem("gapScanCounts")||"{}");
+sections.forEach(s=>{if(typeof counts[s]!=="number")counts[s]=0});
+
+const list=document.getElementById("list");
+
+sections.forEach((name,index)=>{
+  const card=document.createElement("div");
+  card.className="card";
+  card.innerHTML=`
+    <button class="header" type="button">
+      <span class="left"><span class="arrow">▶</span><span>${name}</span></span>
+      <span class="count-pill" id="pill-${index}">0</span>
+    </button>
+    <div class="controls">
+      <button class="control minus" type="button">−</button>
+      <span class="number" id="num-${index}">0</span>
+      <button class="control plus" type="button">+</button>
+    </div>`;
+    
+  const header=card.querySelector(".header");
+  const minus=card.querySelector(".minus");
+  const plus=card.querySelector(".plus");
+  
+  header.onclick=()=>card.classList.toggle("open");
+  minus.onclick=e=>{e.stopPropagation();change(name,-1,index)};
+  plus.onclick=e=>{e.stopPropagation();change(name,1,index)};
+  
+  list.appendChild(card);
+  update(index,name);
+});
+
+function change(name,amount,index){
+  counts[name]=Math.max(0,counts[name]+amount);
+  save();
+  update(index,name);
+  updateTotal();
+  updateWorstOffender();
+}
+
+function update(index,name){
+  document.getElementById("pill-"+index).textContent=counts[name];
+  document.getElementById("num-"+index).textContent=counts[name];
+}
+
+function updateTotal(){
+  document.getElementById("total").textContent=
+    sections.reduce((sum,s)=>sum+counts[s],0);
+}
+
+function updateWorstOffender(){
+  let worstName="None";
+  let worstCount=0;
+
+  sections.forEach(name=>{
+    if(counts[name] > worstCount){
+      worstCount = counts[name];
+      worstName = name;
+    }
+  });
+
+  document.getElementById("worst").textContent =
+    worstCount === 0 ? "None" : `${worstName} (${worstCount})`;
+}
+
+function save(){
+  localStorage.setItem("gapScanCounts",JSON.stringify(counts));
+}
+
+function resetAll(){
+  if(!confirm("Reset all gap counts?"))return;
+  sections.forEach((s,i)=>{counts[s]=0;update(i,s)});
+  save();
+  updateTotal();
+  updateWorstOffender();
+}
+
+/* -------------------------
+   WEEKLY HISTORY SYSTEM
+--------------------------*/
+
+function saveWeeklyRecord(){
+  const history = JSON.parse(localStorage.getItem("gapHistory") || "[]");
+
+  const record = {
+    date: new Date().toLocaleDateString(),
+    total: sections.reduce((sum,s)=>sum+counts[s],0),
+    worst: document.getElementById("worst").textContent,
+    counts: {...counts}
+  };
+
+  history.push(record);
+  localStorage.setItem("gapHistory", JSON.stringify(history));
+  loadHistory();
+  alert("Weekly record saved!");
+}
+
+function loadHistory(){
+  const history = JSON.parse(localStorage.getItem("gapHistory") || "[]");
+  const box = document.getElementById("history");
+  box.innerHTML = "";
+
+  history.forEach(r=>{
+    const div = document.createElement("div");
+    div.className="history-item";
+    div.innerHTML = `
+      <strong>${r.date}</strong><br>
+      Total: ${r.total}<br>
+      Worst Offender: ${r.worst}
+    `;
+    box.appendChild(div);
+  });
+}
+
+loadHistory();
+updateTotal();
+updateWorstOffender();
+</script>
+</body>
+</html>
