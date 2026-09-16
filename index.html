@@ -84,24 +84,6 @@ button, .control {
 
 <script>
 
-function updateWorstOffender(){
-  let worstName="None";
-  let worstCount=0;
-
-  sections.forEach(name=>{
-    if(counts[name] > worstCount){
-      worstCount = counts[name];
-      worstName = name;
-    }
-  });
-
-  document.getElementById("worst").textContent =
-    worstCount === 0 ? "None" : `${worstName} (${worstCount})`;
-}
-
-
-
-
 // ===============================
 // CLOUD SYNC SETTINGS
 // ===============================
@@ -307,6 +289,23 @@ function updateWorstOffender(){
 
   document.getElementById("worst").textContent =
     worstCount === 0 ? "None" : `${worstName} (${worstCount})`;
+}
+  
+function updateTop3Worst() {
+  const sorted = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  if (sorted.every(item => item[1] === 0)) {
+    document.getElementById("top3").textContent = "None";
+    return;
+  }
+
+  const text = sorted
+    .map(item => `${item[0]} (${item[1]})`)
+    .join(", ");
+
+  document.getElementById("top3").textContent = text;
 }
 
 function save(){
