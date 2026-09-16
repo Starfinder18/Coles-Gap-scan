@@ -57,9 +57,10 @@ button, .control {
 
 <!-- Worst Offender Box -->
 <div class="total" style="margin-top:10px;background:#b30000">
-  Worst Offender
-  <strong id="worst">None</strong>
+  Top 3 Worst
+  <strong id="top3">None</strong>
 </div>
+
 
 <button class="save-week" onclick="saveWeeklyRecord()">Save Weekly Record</button>
 
@@ -76,6 +77,27 @@ button, .control {
 </div>
 
 <script>
+
+function updateTop3Worst() {
+  const sorted = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  if (sorted.every(item => item[1] === 0)) {
+    document.getElementById("top3").textContent = "None";
+    return;
+  }
+
+  const text = sorted
+    .map(item => `${item[0]} (${item[1]})`)
+    .join(", ");
+
+  document.getElementById("top3").textContent = text;
+}
+
+
+
+  
 // ===============================
 // CLOUD SYNC SETTINGS
 // ===============================
@@ -185,6 +207,7 @@ async function saveWeeklyRecord() {
   // Update total + worst offender displays
   updateTotal();
   updateWorstOffender();
+  updateTop3Worst();
 }
 
 
@@ -287,6 +310,7 @@ function resetAll(){
   save();
   updateTotal();
   updateWorstOffender();
+  updateTop3Worst();
 }
 
 
@@ -295,7 +319,7 @@ function resetAll(){
 // ===============================
 loadHistoryFromCloud();
 updateTotal();
-updateWorstOffender();
+updateTop3Worst();
 </script>
 </body>
 </html>
