@@ -327,9 +327,16 @@ function resetAll(){
 // INITIAL LOAD
 // ===============================
 loadHistoryFromCloud();
+
+// ⭐ FIX: Re-render each aisle so counts appear correctly
+sections.forEach((name, index) => {
+  update(index, name);
+});
+
 updateTotal();
 updateWorstOffender();
 updateTop3Worst();
+
 
 </script>
 </body>
