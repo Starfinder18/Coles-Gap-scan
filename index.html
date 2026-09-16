@@ -273,7 +273,9 @@ function change(name,amount,index){
   update(index,name);
   updateTotal();
   updateWorstOffender();
+  updateTop3Worst();
 }
+
 
 function update(index,name){
   document.getElementById("pill-"+index).textContent=counts[name];
@@ -319,7 +321,9 @@ function resetAll(){
 // ===============================
 loadHistoryFromCloud();
 updateTotal();
+updateWorstOffender();
 updateTop3Worst();
+
 </script>
 </body>
 </html>
