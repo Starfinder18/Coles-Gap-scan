@@ -181,7 +181,12 @@ async function saveWeeklyRecord() {
   sections.forEach((name, index) => {
     update(index, name);
   });
+
+  // Update total + worst offender displays
+  updateTotal();
+  updateWorstOffender();
 }
+
 
 
 // ===============================
