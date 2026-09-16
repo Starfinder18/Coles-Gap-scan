@@ -175,6 +175,16 @@ async function saveWeeklyRecord() {
   alert("Weekly record saved to cloud!");
 }
 
+// Reset all counts back to 0
+sections.forEach(name => {
+  counts[name] = 0;
+});
+
+// Update the UI so everything shows 0 again
+sections.forEach((name, index) => {
+  update(index, name);
+});
+
 
 // ===============================
 // RESET HISTORY (SYNCED)
